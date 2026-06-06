@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmileOS AI — Plateforme Autonome</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=JetBrains+Mono:wght@300;400;500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-solid: #070712;
+  --surface: rgba(255,255,255,0.038);
+  --surface-hover: rgba(255,255,255,0.065);
+  --border: rgba(255,255,255,0.07);
+  --border-bright: rgba(255,255,255,0.14);
+  --gold: #C9A84C;
+  --gold-dim: rgba(201,168,76,0.12);
+  --purple: #7C6FFF;
+  --purple-dim: rgba(124,111,255,0.12);
+  --mint: #00E5A0;
+  --mint-dim: rgba(0,229,160,0.1);
+  --rose: #FF6B8A;
+  --rose-dim: rgba(255,107,138,0.1);
+  --text: #EBE8FF;
+  --text-dim: #6A6888;
+  --text-mid: #9A97B8;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --serif: 'Cormorant Garamond', serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg-solid);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 10%,rgba(124,111,255,0.07) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(201,168,76,0.05) 0%,transparent 55%);pointer-events:none;z-index:0}
+.grid-bg{position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 32px}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes ping{0%{transform:scale(1);opacity:.8}100%{transform:scale(2.5);opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+
+/* SETUP SCREEN */
+#setup-screen{position:fixed;inset:0;background:var(--bg-solid);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+.setup-box{width:100%;max-width:480px;animation:fadeUp .6s ease}
+.setup-logo{text-align:center;margin-bottom:40px}
+.setup-logo-mark{width:56px;height:56px;border:1.5px solid var(--gold);border-radius:14px;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:28px;font-weight:700;color:var(--gold);background:var(--gold-dim);margin:0 auto 16px}
+.setup-title{font-family:var(--serif);font-size:32px;font-weight:600;color:var(--text)}
+.setup-title span{color:var(--gold)}
+.setup-sub{font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:3px;margin-top:6px}
+.setup-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:12px}
+.setup-label{font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.setup-input{width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:12px 16px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;transition:border-color .2s}
+.setup-input:focus{border-color:var(--border-bright)}
+.setup-input::placeholder{color:var(--text-dim)}
+.setup-hint{font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6}
+.setup-btn{width:100%;padding:14px;background:var(--purple);border:none;border-radius:12px;font-family:var(--mono);font-size:13px;font-weight:500;color:white;cursor:pointer;letter-spacing:2px;transition:all .2s;margin-top:8px}
+.setup-btn:hover{background:#9488FF;transform:scale(1.01)}
+
+/* DASHBOARD */
+#dashboard{display:none}
+.header{padding:28px 0 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);margin-bottom:32px}
+.logo{display:flex;align-items:center;gap:14px}
+.logo-mark{width:42px;height:42px;border:1px solid var(--gold);border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:22px;font-weight:700;color:var(--gold);background:var(--gold-dim)}
+.logo-text{font-family:var(--serif);font-size:26px;font-weight:600;color:var(--text)}
+.logo-text span{color:var(--gold)}
+.logo-sub{font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:3px;margin-top:2px}
+.header-right{display:flex;align-items:center;gap:12px}
+.status-live{display:flex;align-items:center;gap:8px;padding:6px 14px;border:1px solid rgba(0,229,160,0.3);border-radius:20px;background:var(--mint-dim)}
+.status-dot{position:relative;width:8px;height:8px;border-radius:50%;background:var(--mint)}
+.status-dot::after{content:'';position:absolute;inset:0;border-radius:50%;background:var(--mint);animation:ping 1.5s ease-out infinite}
+.status-live span{font-family:var(--mono);font-size:11px;color:var(--mint);letter-spacing:2px}
+.credits-badge{font-family:var(--mono);font-size:13px;color:var(--gold);padding:6px 14px;border:1px solid rgba(201,168,76,0.3);border-radius:20px;background:var(--gold-dim);letter-spacing:1px}
+.gh-info{display:flex;align-items:center;gap:8px}
+#gh-avatar{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border-bright);display:none}
+.gh-name{font-size:13px;color:var(--text-mid)}
+.refresh-btn{background:transparent;border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-family:var(--mono);font-size:11px;color:var(--text-dim);cursor:pointer;transition:all .2s;letter-spacing:1px}
+.refresh-btn:hover{border-color:var(--border-bright);color:var(--text-mid)}
+.settings-btn{background:transparent;border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:14px;color:var(--text-dim);cursor:pointer;transition:all .2s}
+.settings-btn:hover{border-color:var(--border-bright)}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px}
+.stat-card{padding:20px 22px;background:var(--surface);border:1px solid var(--border);border-radius:14px;position:relative;overflow:hidden;animation:fadeUp .5s ease both}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:14px 14px 0 0}
+.stat-card:nth-child(1)::before{background:var(--purple)}
+.stat-card:nth-child(2)::before{background:var(--mint)}
+.stat-card:nth-child(3)::before{background:var(--rose)}
+.stat-card:nth-child(4)::before{background:var(--gold)}
+.stat-label{font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px}
+.stat-value{font-family:var(--serif);font-size:36px;font-weight:600;line-height:1;margin-bottom:6px}
+.stat-card:nth-child(1) .stat-value{color:var(--purple)}
+.stat-card:nth-child(2) .stat-value{color:var(--mint)}
+.stat-card:nth-child(3) .stat-value{color:var(--rose)}
+.stat-card:nth-child(4) .stat-value{color:var(--gold)}
+.stat-sub{font-family:var(--mono);font-size:10px;color:var(--text-dim)}
+
+.section-title{font-family:var(--mono);font-size:10px;letter-spacing:4px;text-transform:uppercase;color:var(--text-dim);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.agents-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:32px}
+.agent-card{padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:14px;cursor:pointer;transition:all .22s;position:relative;overflow:hidden}
+.agent-card:hover{background:var(--surface-hover);border-color:var(--border-bright);transform:translateY(-2px)}
+.agent-card.selected{border-color:var(--card-color);background:var(--card-bg)}
+.agent-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.agent-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.agent-title{font-size:14px;font-weight:600;margin-bottom:2px}
+.agent-role{font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1px}
+.agent-status{margin-left:auto;width:8px;height:8px;border-radius:50%;animation:pulse 2s infinite}
+.agent-task{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-bottom:8px;padding:6px 10px;background:rgba(0,0,0,0.2);border-radius:6px;border-left:2px solid var(--card-color,var(--purple))}
+.agent-preview{font-size:12px;color:var(--text-mid);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.agent-time{font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-top:10px}
+
+.spotlight{margin-bottom:32px;padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:16px;min-height:160px;position:relative;overflow:hidden}
+.spotlight::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(124,111,255,0.06) 0%,transparent 70%);pointer-events:none}
+.spotlight-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.spotlight-tag{font-family:var(--mono);font-size:10px;letter-spacing:3px;text-transform:uppercase;padding:3px 10px;border-radius:4px}
+.spotlight-task{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-bottom:14px;padding:8px 12px;background:rgba(0,0,0,0.25);border-radius:8px;display:inline-block}
+.spotlight-result{font-size:15px;line-height:1.85;color:var(--text);font-weight:300;animation:fadeUp .4s ease}
+.spotlight-time{font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-top:16px}
+
+.history-panel{margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.history-header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.history-title{font-family:var(--mono);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--text-mid)}
+.history-count{font-family:var(--mono);font-size:11px;color:var(--text-dim)}
+.history-list{max-height:320px;overflow-y:auto;padding:8px 0}
+.history-list::-webkit-scrollbar{width:3px}
+.history-list::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:2px}
+.history-item{display:flex;gap:14px;padding:14px 24px;cursor:pointer;transition:background .15s;border-bottom:1px solid var(--border);animation:slideIn .3s ease}
+.history-item:last-child{border-bottom:none}
+.history-item:hover{background:var(--surface-hover)}
+.history-emoji{font-size:18px;flex-shrink:0;margin-top:2px}
+.history-body{flex:1;min-width:0}
+.history-agent{font-size:12px;font-weight:600;margin-bottom:3px}
+.history-task{font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-bottom:5px}
+.history-excerpt{font-size:12px;color:var(--text-mid);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.history-time{font-family:var(--mono);font-size:10px;color:var(--text-dim);flex-shrink:0;margin-top:2px}
+
+.cmd-bar{position:sticky;bottom:24px;display:flex;align-items:center;gap:0;background:rgba(14,14,28,0.95);backdrop-filter:blur(20px);border:1px solid var(--border-bright);border-radius:16px;padding:4px 4px 4px 20px;box-shadow:0 8px 32px rgba(0,0,0,.5);margin-bottom:32px}
+.cmd-icon{font-family:var(--mono);font-size:14px;color:var(--gold);margin-right:12px;flex-shrink:0}
+.cmd-input{flex:1;background:transparent;border:none;outline:none;font-family:var(--sans);font-size:14px;color:var(--text);padding:12px 0}
+.cmd-input::placeholder{color:var(--text-dim)}
+.cmd-btn{background:var(--purple);border:none;border-radius:12px;padding:10px 22px;font-family:var(--mono);font-size:12px;font-weight:500;color:white;cursor:pointer;letter-spacing:1px;transition:all .2s;flex-shrink:0}
+.cmd-btn:hover{background:#9488FF;transform:scale(1.02)}
+
+.loader{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;gap:14px}
+.loading p{font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:2px}
+.footer{padding:20px 0 32px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:2px;border-top:1px solid var(--border)}
+
+@media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr)}.agents-grid{grid-template-columns:1fr}.header{flex-direction:column;gap:16px;align-items:flex-start}.wrap{padding:0 16px}}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen">
+  <div class="setup-box">
+    <div class="setup-logo">
+      <div class="setup-logo-mark">S</div>
+      <div class="setup-title">SmileOS <span>AI</span></div>
+      <div class="setup-sub">CONFIGURATION INITIALE</div>
+    </div>
+
+    <div class="setup-card">
+      <div class="setup-label">🔑 Token GitHub</div>
+      <input class="setup-input" id="setup-gh" type="password" placeholder="ghp_votre_nouveau_token..." />
+      <div class="setup-hint">GitHub → Settings → Developer settings → Personal access tokens (classic)<br>Cochez : repo + read:user</div>
+    </div>
+
+    <div class="setup-card">
+      <div class="setup-label">🤖 Serveur SmileOS AI</div>
+      <input class="setup-input" id="setup-backend" type="text" value="https://smileos-ai-backend.onrender.com" />
+      <div class="setup-hint">Votre backend Render — ne changez pas sauf si l'URL a changé</div>
+    </div>
+
+    <button class="setup-btn" onclick="saveSetup()">LANCER SMILEOS AI ↗</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+<div class="wrap">
+  <header class="header">
+    <div class="logo">
+      <div class="logo-mark">S</div>
+      <div>
+        <div class="logo-text">SmileOS <span>AI</span></div>
+        <div class="logo-sub">PLATEFORME AUTONOME</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="gh-info">
+        <img id="gh-avatar" alt="Avatar" />
+        <span class="gh-name" id="gh-name">...</span>
+      </div>
+      <div class="status-live">
+        <div class="status-dot"></div>
+        <span>ACTIF 24H/24</span>
+      </div>
+      <div class="credits-badge">∞ CRÉDITS</div>
+      <button class="refresh-btn" onclick="refreshAll()" id="refresh-btn">↺ ACTUALISER</button>
+      <button class="settings-btn" onclick="resetSetup()" title="Paramètres">⚙</button>
+    </div>
+  </header>
+
+  <div class="stats-grid">
+    <div class="stat-card" style="animation-delay:.05s"><div class="stat-label">Tâches complétées</div><div class="stat-value" id="st-total">—</div><div class="stat-sub">✦ SERVEUR RÉEL</div></div>
+    <div class="stat-card" style="animation-delay:.1s"><div class="stat-label">Commits GitHub</div><div class="stat-value" id="st-commits">—</div><div class="stat-sub">✦ GITHUB RÉEL</div></div>
+    <div class="stat-card" style="animation-delay:.15s"><div class="stat-label">Balance Stripe</div><div class="stat-value" id="st-balance">—</div><div class="stat-sub">✦ STRIPE RÉEL</div></div>
+    <div class="stat-card" style="animation-delay:.2s"><div class="stat-label">Mise à jour auto</div><div class="stat-value">2H</div><div class="stat-sub">✦ AUTOMATIQUE</div></div>
+  </div>
+
+  <div class="section-title">Agents autonomes — derniers résultats</div>
+  <div class="agents-grid" id="agent-grid">
+    <div class="loading" style="grid-column:1/-1"><div class="loader"></div><p>CONNEXION AU SERVEUR...</p></div>
+  </div>
+
+  <div class="section-title">Résultat complet</div>
+  <div class="spotlight" id="spotlight">
+    <div class="spotlight-header">
+      <span style="font-size:20px">💡</span>
+      <span style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--text-dim)">CLIQUEZ SUR UN AGENT POUR VOIR SON RÉSULTAT COMPLET</span>
+    </div>
+  </div>
+
+  <div class="section-title">Historique sauvegardé en base de données</div>
+  <div class="history-panel">
+    <div class="history-header">
+      <span class="history-title">Actions des agents</span>
+      <span class="history-count" id="history-count">Chargement...</span>
+    </div>
+    <div class="history-list" id="history-list">
+      <div class="loading"><div class="loader"></div><p>CHARGEMENT...</p></div>
+    </div>
+  </div>
+
+  <div class="cmd-bar">
+    <span class="cmd-icon">›_</span>
+    <input class="cmd-input" id="cmd-input" type="text" placeholder="Posez une question à vos agents SmileOS..." />
+    <button class="cmd-btn" onclick="sendCmd()">ENVOYER ↗</button>
+  </div>
+
+  <div class="footer">SMILEOS AI · AGENTS AUTONOMES · MISE À JOUR AUTOMATIQUE TOUTES LES 2H</div>
+</div>
+</div>
+
+<script>
+const AGENTS_CONFIG = [
+  {id:"strategy", emoji:"🧭", name:"Stratège",    role:"Vision & Planification",  color:"#7C6FFF", bg:"rgba(124,111,255,0.1)"},
+  {id:"dev",      emoji:"💻", name:"Développeur", role:"Code & Architecture",     color:"#00E5A0", bg:"rgba(0,229,160,0.08)"},
+  {id:"marketing",emoji:"📣", name:"Marketing",   role:"Croissance & Visibilité", color:"#FF6B8A", bg:"rgba(255,107,138,0.09)"},
+  {id:"ops",      emoji:"⚙️", name:"Opérations",  role:"Organisation & KPIs",     color:"#C9A84C", bg:"rgba(201,168,76,0.09)"}
+];
+
+let GH_TOKEN = "", BACKEND = "https://smileos-ai-backend.onrender.com";
+let agentResults = {};
+
+function saveSetup() {
+  const gh = document.getElementById("setup-gh").value.trim();
+  const be = document.getElementById("setup-backend").value.trim();
+  if (!gh) { alert("Entrez votre token GitHub !"); return; }
+  GH_TOKEN = gh;
+  BACKEND = be || BACKEND;
+  localStorage.setItem("smileos_gh_token", gh);
+  localStorage.setItem("smileos_backend", BACKEND);
+  document.getElementById("setup-screen").style.display = "none";
+  document.getElementById("dashboard").style.display = "block";
+  refreshAll();
+}
+
+function resetSetup() {
+  localStorage.removeItem("smileos_gh_token");
+  document.getElementById("dashboard").style.display = "none";
+  document.getElementById("setup-screen").style.display = "flex";
+}
+
+function checkSetup() {
+  const gh = localStorage.getItem("smileos_gh_token");
+  const be = localStorage.getItem("smileos_backend");
+  if (gh) {
+    GH_TOKEN = gh;
+    if (be) BACKEND = be;
+    document.getElementById("setup-screen").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+    refreshAll();
+  }
+}
+
+async function refreshAll() {
+  const btn = document.getElementById("refresh-btn");
+  btn.textContent = "⏳ ..."; btn.disabled = true;
+  await Promise.all([loadResults(), loadHistory(), loadStats(), loadGitHub(), loadStripe()]);
+  btn.textContent = "↺ ACTUALISER"; btn.disabled = false;
+}
+
+async function loadResults() {
+  try {
+    const r = await fetch(BACKEND + "/api/results");
+    const data = await r.json();
+    agentResults = {};
+    (Array.isArray(data) ? data : []).forEach(row => agentResults[row.agent_id] = row);
+    renderAgents();
+  } catch(e) { renderAgents(); }
+}
+
+function renderAgents() {
+  const grid = document.getElementById("agent-grid");
+  grid.innerHTML = "";
+  AGENTS_CONFIG.forEach((a, i) => {
+    const row = agentResults[a.id];
+    const card = document.createElement("div");
+    card.className = "agent-card";
+    card.id = "acard-" + a.id;
+    card.style.cssText = `--card-color:${a.color};--card-bg:${a.bg};animation:fadeUp .4s ease ${i*.08}s both`;
+    card.onclick = () => showSpotlight(a.id);
+    const time = row ? new Date(row.created_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "";
+    card.innerHTML = `
+      <div class="agent-header">
+        <div class="agent-icon" style="background:${a.bg};border:1px solid ${a.color}33">${a.emoji}</div>
+        <div><div class="agent-title" style="color:${a.color}">${a.name}</div><div class="agent-role">${a.role}</div></div>
+        <div class="agent-status" style="background:${a.color}"></div>
+      </div>
+      ${row ? `
+        <div class="agent-task">📌 ${row.task}</div>
+        <div class="agent-preview">${row.result || ""}</div>
+        <div class="agent-time">🕐 ${time}</div>
+      ` : `<div class="agent-task" style="font-style:italic;opacity:.6">⏳ En cours de traitement...</div>`}
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function showSpotlight(agentId) {
+  const a = AGENTS_CONFIG.find(x => x.id === agentId);
+  const row = agentResults[agentId];
+  document.querySelectorAll(".agent-card").forEach(c => { c.classList.remove("selected"); c.style.borderColor = ""; });
+  const card = document.getElementById("acard-" + agentId);
+  if (card) { card.classList.add("selected"); card.style.borderColor = a.color; }
+  const spot = document.getElementById("spotlight");
+  if (!row) { spot.innerHTML = `<div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:2px">⏳ PAS ENCORE DE RÉSULTAT — ACTUALISEZ DANS QUELQUES MINUTES</div>`; return; }
+  spot.innerHTML = `
+    <div class="spotlight-header">
+      <span style="font-size:22px">${a.emoji}</span>
+      <span class="spotlight-tag" style="background:${a.bg};color:${a.color};border:1px solid ${a.color}30">${a.name.toUpperCase()}</span>
+      <span style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text-dim)">RÉSULTAT COMPLET</span>
+    </div>
+    <div class="spotlight-task">📌 ${row.task}</div>
+    <div class="spotlight-result">${row.result || ""}</div>
+    <div class="spotlight-time">🕐 ${new Date(row.created_at).toLocaleString("fr-FR")}</div>
+  `;
+}
+
+async function loadHistory() {
+  try {
+    const r = await fetch(BACKEND + "/api/history");
+    const data = await r.json();
+    const list = document.getElementById("history-list");
+    document.getElementById("history-count").textContent = (data.length || 0) + " actions enregistrées";
+    list.innerHTML = "";
+    if (!data.length) { list.innerHTML = `<div style="padding:24px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-dim);letter-spacing:2px">LES AGENTS DÉMARRENT — REVENEZ DANS 2 MINUTES</div>`; return; }
+    data.forEach(row => {
+      const a = AGENTS_CONFIG.find(x => x.id === row.agent_id) || {color:"#888",emoji:"🤖"};
+      const time = new Date(row.created_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+      const item = document.createElement("div");
+      item.className = "history-item";
+      item.onclick = () => showSpotlight(row.agent_id);
+      item.innerHTML = `
+        <div class="history-emoji">${row.agent_emoji || a.emoji}</div>
+        <div class="history-body">
+          <div class="history-agent" style="color:${a.color}">${row.agent_name}</div>
+          <div class="history-task">${row.task}</div>
+          <div class="history-excerpt">${row.result ? row.result.slice(0,120)+"..." : ""}</div>
+        </div>
+        <div class="history-time">${time}</div>
+      `;
+      list.appendChild(item);
+    });
+  } catch(e) { document.getElementById("history-list").innerHTML = `<div style="padding:24px;font-family:var(--mono);font-size:11px;color:#FF6B8A;letter-spacing:2px">⚠️ SERVEUR EN DÉMARRAGE — ATTENDEZ ET ACTUALISEZ</div>`; }
+}
+
+async function loadStats() {
+  try { const d = await fetch(BACKEND+"/api/stats").then(r=>r.json()); document.getElementById("st-total").textContent = d.total || 0; } catch(e) {}
+}
+
+async function loadStripe() {
+  try { const d = await fetch(BACKEND+"/api/balance").then(r=>r.json()); document.getElementById("st-balance").textContent = "€"+(d.available||0).toFixed(2); } catch(e) { document.getElementById("st-balance").textContent = "€0.00"; }
+}
+
+async function loadGitHub() {
+  const h = {"Authorization":"Bearer "+GH_TOKEN,"Accept":"application/vnd.github.v3+json"};
+  try {
+    const u = await fetch("https://api.github.com/user",{headers:h}).then(r=>r.json());
+    const e = await fetch("https://api.github.com/users/"+u.login+"/events?per_page=30",{headers:h}).then(r=>r.json());
+    const av = document.getElementById("gh-avatar"); av.src = u.avatar_url; av.style.display = "block";
+    document.getElementById("gh-name").textContent = "@" + u.login;
+    const commits = (Array.isArray(e)?e:[]).filter(x=>x.type==="PushEvent").reduce((a,x)=>a+(x.payload?.commits?.length||0),0);
+    document.getElementById("st-commits").textContent = commits;
+  } catch(e) {}
+}
+
+async function sendCmd() {
+  const inp = document.getElementById("cmd-input");
+  const cmd = inp.value.trim(); if(!cmd) return;
+  inp.value = "";
+  const spot = document.getElementById("spotlight");
+  spot.innerHTML = `<div class="spotlight-header"><div class="loader" style="width:20px;height:20px;border-width:1.5px"></div><span style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--text-dim)">VOS AGENTS RÉFLÉCHISSENT...</span></div><div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:10px">📌 ${cmd}</div>`;
+  try {
+    const r = await fetch(BACKEND+"/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:cmd})});
+    const d = await r.json();
+    const txt = d.reply;
+    if(txt) spot.innerHTML = `<div class="spotlight-header"><span style="font-size:22px">💡</span><span class="spotlight-tag" style="background:rgba(124,111,255,0.1);color:#7C6FFF;border:1px solid rgba(124,111,255,0.2)">RÉPONSE DE VOS AGENTS</span></div><div class="spotlight-task">📌 ${cmd}</div><div class="spotlight-result">${txt}</div><div class="spotlight-time">🕐 ${new Date().toLocaleString("fr-FR")}</div>`;
+  } catch(e) {}
+}
+
+document.getElementById("cmd-input").addEventListener("keydown", e => { if(e.key==="Enter") sendCmd(); });
+setInterval(refreshAll, 120000);
+checkSetup();
+</script>
+</body>
+</html>
