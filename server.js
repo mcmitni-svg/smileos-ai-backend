@@ -20,13 +20,13 @@ const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env
 
 const AGENTS = [
   { id:'strategy', name:'Stratège',    emoji:'🧭', role:'Vision & Planification',
-    tasks:['Analyse du marché et de la concurrence','Définition de la roadmap produit','Identification des opportunités de croissance','Modélisation du business model','Identification des partenariats stratégiques'] },
+    tasks:['Définir la priorité stratégique du jour','Analyse des opportunités du moment','Définition de la roadmap court terme','Analyse de la concurrence','Identification des partenariats'] },
   { id:'dev',      name:'Développeur', emoji:'💻', role:'Code & Architecture',
-    tasks:["Review de l'architecture technique",'Optimisation des performances','Identification des améliorations produit','Sécurité et bonnes pratiques','Mise à jour des dépendances'] },
+    tasks:["Implémentation technique de la priorité du jour",'Optimisation des performances','Sécurité et bonnes pratiques','Mise à jour des dépendances','Review technique'] },
   { id:'marketing',name:'Marketing',   emoji:'📣', role:'Croissance & Visibilité',
-    tasks:['Stratégie de contenu pour les réseaux sociaux','Optimisation SEO','Analyse du profil client idéal',"Campagnes d'acquisition",'Stratégie de rétention clients'] },
+    tasks:['Communication sur la priorité du jour','Optimisation SEO','Stratégie réseaux sociaux',"Campagnes d'acquisition",'Analyse du feedback client'] },
   { id:'ops',      name:'Opérations',  emoji:'⚙️', role:'Organisation & Efficacité',
-    tasks:['Automatisation des processus internes','Rapport de performance hebdomadaire','Optimisation des coûts','Mise en place des KPIs','Organisation et priorisation des tâches'] }
+    tasks:['Support opérationnel de la stratégie','Automatisation des processus','Optimisation des coûts','Mise en place des KPIs','Organisation des tâches'] }
 ];
 
 async function initDB() {
@@ -75,14 +75,38 @@ async function callAI(prompt, systemPrompt = "") {
   return response.content[0].text;
 }
 
+async function getRecentContext() {
+  if (!pool) return "";
+  try {
+    const r = await pool.query('SELECT agent_name, task, result FROM agent_results ORDER BY created_at DESC LIMIT 5');
+    return r.rows.map(row => `[${row.agent_name}] Tâche: ${row.task} -> Résultat: ${row.result}`).join('\n');
+  } catch (e) { return ""; }
+}
+
 async function runAgent(agentId) {
   const agent = AGENTS.find(a => a.id === agentId);
   if (!agent) return;
   const task = agent.tasks[Math.floor(Math.random() * agent.tasks.length)];
   console.log(`🤖 ${agent.emoji} ${agent.name} → ${task}`);
   try {
-    const systemPrompt = `Tu es un agent IA autonome spécialisé en "${agent.role}" pour SmileOS, une startup innovante.`;
-    const prompt = `Tâche : ${task}\nProduis un résultat professionnel, concret et actionnable en français (4-5 phrases). Explique ce que tu as fait et ce que ça apporte à SmileOS. Parle simplement, comme un conseiller qui s'adresse au fondateur. Commence directement par le résultat.`;
+    const context = await getRecentContext();
+    const systemPrompt = `Tu es un agent IA autonome spécialisé en "${agent.role}" pour SmileOS, une startup innovante.
+Voici ce que tes collègues ont fait récemment :\n${context}`;
+    
+    let prompt = "";
+    if (agent.id === 'strategy') {
+      prompt = `Tâche : ${task}\n
+En tant que Stratège, ton rôle est de donner la direction. 
+Produis un résultat concret (4-5 phrases) qui définit une priorité claire pour l'équipe.
+Explique ce que tu as décidé et pourquoi c'est vital pour SmileOS maintenant.
+Commence directement par le résultat.`;
+    } else {
+      prompt = `Tâche : ${task}\n
+Produis un résultat professionnel et concret (4-5 phrases). 
+TIENS COMPTE de la direction donnée par le Stratège dans le contexte récent.
+Explique ton action et son impact. Sois direct.
+Commence directement par le résultat.`;
+    }
     
     const result = await callAI(prompt, systemPrompt);
     
@@ -96,6 +120,7 @@ async function runAgent(agentId) {
 app.get('/', (req, res) => res.json({ 
   status: 'ok', 
   message: '✅ SmileOS AI Backend actif 24h/24', 
+  features: ['Collective Memory', 'Daily Priority', 'Autonomous Agents'],
   provider: (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) ? 'Gemini (Free)' : 'Anthropic',
   agents: AGENTS.map(a => `${a.emoji} ${a.name}`) 
 }));
