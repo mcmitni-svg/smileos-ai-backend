@@ -122,7 +122,7 @@ app.post('/api/chat', async (req, res) => {
   if (!message) return res.status(400).json({ error: 'Message requis' });
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307', max_tokens: 1000,
+      model: 'claude-3-5-sonnet-20241022', max_tokens: 1000,
       messages: [{ role: 'user', content: `Tu es le coordinateur IA de SmileOS, une startup innovante.\nQuestion du fondateur : "${message}"\nRéponds clairement en français avec des emojis pour chaque point. 4-5 points maximum. Sois direct et utile.` }]
     });
     console.log('Anthropic response received');
