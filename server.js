@@ -42,19 +42,23 @@ async function initDB() {
 }
 
 async function callAI(prompt, systemPrompt = "") {
-  // Priorité à Gemini (Gratuit) si la clé est présente
-  if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  
+  if (geminiKey && geminiKey !== 'no-key') {
     try {
+      console.log('Using Gemini AI...');
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
       const res = await model.generateContent(fullPrompt);
-      return res.response.text();
+      const text = res.response.text();
+      if (text) return text;
     } catch (e) {
-      console.error('Gemini Error, falling back to Anthropic if available:', e.message);
+      console.error('Gemini Error:', e.message);
+      // If Gemini fails, we will try Anthropic as fallback below
     }
   }
 
-  // Fallback sur Anthropic
+  console.log('Using Anthropic AI (Fallback)...');
   const response = await anthropic.messages.create({
     model: 'claude-3-5-sonnet-20241022', max_tokens: 1000,
     messages: [{ role: 'user', content: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt }]
@@ -96,6 +100,16 @@ app.get('/api/debug', (req, res) => {
     port: PORT,
     nodeVersion: process.version
   });
+});
+
+app.get('/api/test-gemini', async (req, res) => {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const res_gem = await model.generateContent("Say hello");
+    res.json({ success: true, reply: res_gem.response.text() });
+  } catch (e) {
+    res.json({ success: false, error: e.message, stack: e.stack });
+  }
 });
 
 app.get('/api/results', async (req, res) => {
@@ -140,7 +154,7 @@ app.post('/api/chat', async (req, res) => {
     const reply = await callAI(prompt, systemPrompt);
     res.json({ reply });
   } catch(e) { 
-    res.status(500).json({ error: e.message }); 
+    res.status(500).json({ error: e.message, stack: e.stack }); 
   }
 });
 
