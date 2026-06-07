@@ -113,7 +113,10 @@ Commence directement par le résultat.`;
     if (pool) await pool.query('INSERT INTO agent_results (agent_id, agent_name, agent_emoji, task, result) VALUES ($1, $2, $3, $4, $5)', [agent.id, agent.name, agent.emoji, task, result]);
     console.log(`✅ ${agent.emoji} ${agent.name} → Terminé`);
     return { agent: agent.name, emoji: agent.emoji, task, result };
-  } catch(e) { console.error(`❌ ${agent.name}:`, e.message); }
+  } catch(e) { 
+    console.error(`❌ ${agent.name}:`, e.message); 
+    return { error: e.message, agent: agent.name };
+  }
 }
 
 // Routes
@@ -194,7 +197,9 @@ app.post('/api/chat', async (req, res) => {
 
 app.post('/api/run/:agentId', async (req, res) => {
   const result = await runAgent(req.params.agentId);
-  res.json(result || { error: 'Agent non trouvé' });
+  if (!result) return res.status(404).json({ error: 'ID Agent inconnu' });
+  if (result.error) return res.status(500).json(result);
+  res.json(result);
 });
 
 // Cron toutes les 2h
