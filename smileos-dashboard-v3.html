@@ -407,9 +407,15 @@ async function sendCmd() {
   try {
     const r = await fetch(BACKEND+"/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:cmd})});
     const d = await r.json();
+    if (d.error) {
+      spot.innerHTML = `<div class="spotlight-header"><span style="font-size:22px">⚠️</span><span class="spotlight-tag" style="background:rgba(255,107,138,0.1);color:#FF6B8A;border:1px solid rgba(255,107,138,0.2)">ERREUR TECHNIQUE</span></div><div class="spotlight-result" style="color:#FF6B8A;font-size:13px">${d.error}</div><div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-top:10px">Consultez votre compte Anthropic (Plans & Billing).</div>`;
+      return;
+    }
     const txt = d.reply;
     if(txt) spot.innerHTML = `<div class="spotlight-header"><span style="font-size:22px">💡</span><span class="spotlight-tag" style="background:rgba(124,111,255,0.1);color:#7C6FFF;border:1px solid rgba(124,111,255,0.2)">RÉPONSE DE VOS AGENTS</span></div><div class="spotlight-task">📌 ${cmd}</div><div class="spotlight-result">${txt}</div><div class="spotlight-time">🕐 ${new Date().toLocaleString("fr-FR")}</div>`;
-  } catch(e) {}
+  } catch(e) {
+    spot.innerHTML = `<div class="spotlight-header"><span style="font-size:22px">❌</span><span class="spotlight-tag" style="background:rgba(255,107,138,0.1);color:#FF6B8A;border:1px solid rgba(255,107,138,0.2)">ERREUR DE CONNEXION</span></div><div class="spotlight-result" style="color:#FF6B8A">Impossible de joindre le serveur. Vérifiez que votre backend Render est actif.</div>`;
+  }
 }
 
 document.getElementById("cmd-input").addEventListener("keydown", e => { if(e.key==="Enter") sendCmd(); });
