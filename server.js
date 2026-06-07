@@ -45,7 +45,7 @@ async function runAgent(agentId) {
   console.log(`🤖 ${agent.emoji} ${agent.name} → ${task}`);
   try {
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+      model: 'claude-3-5-sonnet-20240620', max_tokens: 1000,
       messages: [{ role: 'user', content: `Tu es un agent IA autonome spécialisé en "${agent.role}" pour SmileOS, une startup innovante.\nTâche : ${task}\nProduis un résultat professionnel, concret et actionnable en français (4-5 phrases). Explique ce que tu as fait et ce que ça apporte à SmileOS. Parle simplement, comme un conseiller qui s'adresse au fondateur. Commence directement par le résultat.` }]
     });
     const result = message.content[0].text;
@@ -57,6 +57,16 @@ async function runAgent(agentId) {
 
 // Routes
 app.get('/', (req, res) => res.json({ status: 'ok', message: '✅ SmileOS AI Backend actif 24h/24', agents: AGENTS.map(a => `${a.emoji} ${a.name}`) }));
+
+app.get('/api/debug', (req, res) => {
+  res.json({
+    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
+    hasStripeKey: !!process.env.STRIPE_KEY,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    port: PORT,
+    nodeVersion: process.version
+  });
+});
 
 app.get('/api/results', async (req, res) => {
   if (!pool) return res.json([]);
@@ -90,7 +100,7 @@ app.post('/api/chat', async (req, res) => {
   if (!message) return res.status(400).json({ error: 'Message requis' });
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+      model: 'claude-3-5-sonnet-20240620', max_tokens: 1000,
       messages: [{ role: 'user', content: `Tu es le coordinateur IA de SmileOS, une startup innovante.\nQuestion du fondateur : "${message}"\nRéponds clairement en français avec des emojis pour chaque point. 4-5 points maximum. Sois direct et utile.` }]
     });
     res.json({ reply: response.content[0].text });
