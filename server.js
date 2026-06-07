@@ -71,6 +71,19 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
+app.get('/api/test-anthropic', async (req, res) => {
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-3-5-sonnet-20241022', max_tokens: 10,
+      messages: [{ role: 'user', content: 'Say hello' }]
+    });
+    res.json({ success: true, response });
+  } catch (e) {
+    console.error('Test Anthropic Error:', e);
+    res.json({ success: false, error: e.message, type: e.type, status: e.status, stack: e.stack });
+  }
+});
+
 app.get('/api/results', async (req, res) => {
   if (!pool) return res.json([]);
   try { 
