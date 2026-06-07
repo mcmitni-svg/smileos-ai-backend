@@ -115,5 +115,3 @@ initDB().then(() => {
     console.log(`🤖 4 agents actifs — mise à jour toutes les 2h\n`);
   });
 });
-
-});

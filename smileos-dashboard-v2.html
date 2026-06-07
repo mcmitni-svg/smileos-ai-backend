@@ -405,9 +405,9 @@ async function sendCmd() {
   const spot = document.getElementById("spotlight");
   spot.innerHTML = `<div class="spotlight-header"><div class="loader" style="width:20px;height:20px;border-width:1.5px"></div><span style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--text-dim)">VOS AGENTS RÉFLÉCHISSENT...</span></div><div style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:10px">📌 ${cmd}</div>`;
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:`Tu es le coordinateur IA de SmileOS. Question : "${cmd}". Réponds clairement en français avec des emojis. 4-5 points max.`}]})});
+    const r = await fetch(BACKEND+"/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:cmd})});
     const d = await r.json();
-    const txt = d.content?.[0]?.text;
+    const txt = d.reply;
     if(txt) spot.innerHTML = `<div class="spotlight-header"><span style="font-size:22px">💡</span><span class="spotlight-tag" style="background:rgba(124,111,255,0.1);color:#7C6FFF;border:1px solid rgba(124,111,255,0.2)">RÉPONSE DE VOS AGENTS</span></div><div class="spotlight-task">📌 ${cmd}</div><div class="spotlight-result">${txt}</div><div class="spotlight-time">🕐 ${new Date().toLocaleString("fr-FR")}</div>`;
   } catch(e) {}
 }
