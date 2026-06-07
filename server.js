@@ -53,8 +53,17 @@ async function callAI(prompt, systemPrompt = "") {
       const text = res.response.text();
       if (text) return text;
     } catch (e) {
-      console.error('Gemini Error:', e.message);
-      // If Gemini fails, we will try Anthropic as fallback below
+      console.error('Gemini Error (gemini-1.5-flash):', e.message);
+      try {
+        console.log('Trying Gemini 1.0 Pro fallback...');
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+        const res = await model.generateContent(fullPrompt);
+        const text = res.response.text();
+        if (text) return text;
+      } catch (e2) {
+        console.error('Gemini Fallback Error:', e2.message);
+      }
     }
   }
 
