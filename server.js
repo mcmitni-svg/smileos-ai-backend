@@ -4,6 +4,7 @@ const cors = require('cors');
 const cron = require('node-cron');
 const Stripe = require('stripe');
 const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Pool } = require('pg');
 
 const app = express();
@@ -11,7 +12,9 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Initialisation des SDKs
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || 'no-key' });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || 'no-key');
 const stripe = process.env.STRIPE_KEY ? Stripe(process.env.STRIPE_KEY) : null;
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }) : null;
 
@@ -38,17 +41,38 @@ async function initDB() {
   } catch(e) { console.error('❌ Erreur DB:', e.message); }
 }
 
+async function callAI(prompt, systemPrompt = "") {
+  // Priorité à Gemini (Gratuit) si la clé est présente
+  if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+      const res = await model.generateContent(fullPrompt);
+      return res.response.text();
+    } catch (e) {
+      console.error('Gemini Error, falling back to Anthropic if available:', e.message);
+    }
+  }
+
+  // Fallback sur Anthropic
+  const response = await anthropic.messages.create({
+    model: 'claude-3-5-sonnet-20241022', max_tokens: 1000,
+    messages: [{ role: 'user', content: systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt }]
+  });
+  return response.content[0].text;
+}
+
 async function runAgent(agentId) {
   const agent = AGENTS.find(a => a.id === agentId);
   if (!agent) return;
   const task = agent.tasks[Math.floor(Math.random() * agent.tasks.length)];
   console.log(`🤖 ${agent.emoji} ${agent.name} → ${task}`);
   try {
-    const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20240620', max_tokens: 1000,
-      messages: [{ role: 'user', content: `Tu es un agent IA autonome spécialisé en "${agent.role}" pour SmileOS, une startup innovante.\nTâche : ${task}\nProduis un résultat professionnel, concret et actionnable en français (4-5 phrases). Explique ce que tu as fait et ce que ça apporte à SmileOS. Parle simplement, comme un conseiller qui s'adresse au fondateur. Commence directement par le résultat.` }]
-    });
-    const result = message.content[0].text;
+    const systemPrompt = `Tu es un agent IA autonome spécialisé en "${agent.role}" pour SmileOS, une startup innovante.`;
+    const prompt = `Tâche : ${task}\nProduis un résultat professionnel, concret et actionnable en français (4-5 phrases). Explique ce que tu as fait et ce que ça apporte à SmileOS. Parle simplement, comme un conseiller qui s'adresse au fondateur. Commence directement par le résultat.`;
+    
+    const result = await callAI(prompt, systemPrompt);
+    
     if (pool) await pool.query('INSERT INTO agent_results (agent_id, agent_name, agent_emoji, task, result) VALUES ($1, $2, $3, $4, $5)', [agent.id, agent.name, agent.emoji, task, result]);
     console.log(`✅ ${agent.emoji} ${agent.name} → Terminé`);
     return { agent: agent.name, emoji: agent.emoji, task, result };
@@ -56,14 +80,17 @@ async function runAgent(agentId) {
 }
 
 // Routes
-app.get('/', (req, res) => res.json({ status: 'ok', message: '✅ SmileOS AI Backend actif 24h/24', agents: AGENTS.map(a => `${a.emoji} ${a.name}`) }));
+app.get('/', (req, res) => res.json({ 
+  status: 'ok', 
+  message: '✅ SmileOS AI Backend actif 24h/24', 
+  provider: (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) ? 'Gemini (Free)' : 'Anthropic',
+  agents: AGENTS.map(a => `${a.emoji} ${a.name}`) 
+}));
 
 app.get('/api/debug', (req, res) => {
-  const key = process.env.ANTHROPIC_API_KEY || "";
   res.json({
-    hasAnthropicKey: !!key,
-    anthropicKeyPrefix: key.substring(0, 7),
-    anthropicKeyLength: key.length,
+    hasGeminiKey: !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY),
+    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
     hasStripeKey: !!process.env.STRIPE_KEY,
     hasDatabaseUrl: !!process.env.DATABASE_URL,
     port: PORT,
@@ -71,28 +98,12 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
-app.get('/api/test-anthropic', async (req, res) => {
-  try {
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022', max_tokens: 10,
-      messages: [{ role: 'user', content: 'Say hello' }]
-    });
-    res.json({ success: true, response });
-  } catch (e) {
-    console.error('Test Anthropic Error:', e);
-    res.json({ success: false, error: e.message, type: e.type, status: e.status, stack: e.stack });
-  }
-});
-
 app.get('/api/results', async (req, res) => {
   if (!pool) return res.json([]);
   try { 
     const r = await pool.query('SELECT DISTINCT ON (agent_id) * FROM agent_results ORDER BY agent_id, created_at DESC'); 
     res.json(r.rows); 
-  } catch(e) { 
-    console.error('Results Error:', e.message);
-    res.status(500).json({ error: e.message }); 
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/history', async (req, res) => {
@@ -100,10 +111,7 @@ app.get('/api/history', async (req, res) => {
   try { 
     const r = await pool.query('SELECT * FROM agent_results ORDER BY created_at DESC LIMIT 30'); 
     res.json(r.rows); 
-  } catch(e) { 
-    console.error('History Error:', e.message);
-    res.status(500).json({ error: e.message }); 
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/stats', async (req, res) => {
@@ -111,10 +119,7 @@ app.get('/api/stats', async (req, res) => {
   try { 
     const r = await pool.query('SELECT COUNT(*) as total FROM agent_results'); 
     res.json({ total: parseInt(r.rows[0].total) }); 
-  } catch(e) { 
-    console.error('Stats Error:', e.message);
-    res.status(500).json({ error: e.message }); 
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/balance', async (req, res) => {
@@ -122,32 +127,20 @@ app.get('/api/balance', async (req, res) => {
   try {
     const balance = await stripe.balance.retrieve();
     res.json({ available: balance.available.reduce((s,b) => s+b.amount,0)/100, pending: balance.pending.reduce((s,b) => s+b.amount,0)/100, currency: 'eur' });
-  } catch(e) { 
-    console.error('Stripe Error:', e.message);
-    res.status(500).json({ error: e.message }); 
-  }
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ✅ NOUVEAU : Chat avec les agents
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
-  console.log('Chat request received:', message);
   if (!message) return res.status(400).json({ error: 'Message requis' });
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022', max_tokens: 1000,
-      messages: [{ role: 'user', content: `Tu es le coordinateur IA de SmileOS, une startup innovante.\nQuestion du fondateur : "${message}"\nRéponds clairement en français avec des emojis pour chaque point. 4-5 points maximum. Sois direct et utile.` }]
-    });
-    console.log('Anthropic response received');
-    res.json({ reply: response.content[0].text });
+    const systemPrompt = "Tu es le coordinateur IA de SmileOS, une startup innovante.";
+    const prompt = `Question du fondateur : "${message}"\nRéponds clairement en français avec des emojis pour chaque point. 4-5 points maximum. Sois direct et utile.`;
+    
+    const reply = await callAI(prompt, systemPrompt);
+    res.json({ reply });
   } catch(e) { 
-    console.error('Chat API Error:', e);
-    res.status(500).json({ 
-      error: e.message, 
-      type: e.type,
-      status: e.status,
-      stack: e.stack
-    }); 
+    res.status(500).json({ error: e.message }); 
   }
 });
 
