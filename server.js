@@ -59,8 +59,11 @@ async function runAgent(agentId) {
 app.get('/', (req, res) => res.json({ status: 'ok', message: '✅ SmileOS AI Backend actif 24h/24', agents: AGENTS.map(a => `${a.emoji} ${a.name}`) }));
 
 app.get('/api/debug', (req, res) => {
+  const key = process.env.ANTHROPIC_API_KEY || "";
   res.json({
-    hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
+    hasAnthropicKey: !!key,
+    anthropicKeyPrefix: key.substring(0, 7),
+    anthropicKeyLength: key.length,
     hasStripeKey: !!process.env.STRIPE_KEY,
     hasDatabaseUrl: !!process.env.DATABASE_URL,
     port: PORT,
@@ -70,20 +73,35 @@ app.get('/api/debug', (req, res) => {
 
 app.get('/api/results', async (req, res) => {
   if (!pool) return res.json([]);
-  try { const r = await pool.query('SELECT DISTINCT ON (agent_id) * FROM agent_results ORDER BY agent_id, created_at DESC'); res.json(r.rows); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  try { 
+    const r = await pool.query('SELECT DISTINCT ON (agent_id) * FROM agent_results ORDER BY agent_id, created_at DESC'); 
+    res.json(r.rows); 
+  } catch(e) { 
+    console.error('Results Error:', e.message);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 app.get('/api/history', async (req, res) => {
   if (!pool) return res.json([]);
-  try { const r = await pool.query('SELECT * FROM agent_results ORDER BY created_at DESC LIMIT 30'); res.json(r.rows); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  try { 
+    const r = await pool.query('SELECT * FROM agent_results ORDER BY created_at DESC LIMIT 30'); 
+    res.json(r.rows); 
+  } catch(e) { 
+    console.error('History Error:', e.message);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 app.get('/api/stats', async (req, res) => {
   if (!pool) return res.json({ total: 0 });
-  try { const r = await pool.query('SELECT COUNT(*) as total FROM agent_results'); res.json({ total: parseInt(r.rows[0].total) }); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  try { 
+    const r = await pool.query('SELECT COUNT(*) as total FROM agent_results'); 
+    res.json({ total: parseInt(r.rows[0].total) }); 
+  } catch(e) { 
+    console.error('Stats Error:', e.message);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 app.get('/api/balance', async (req, res) => {
@@ -91,20 +109,33 @@ app.get('/api/balance', async (req, res) => {
   try {
     const balance = await stripe.balance.retrieve();
     res.json({ available: balance.available.reduce((s,b) => s+b.amount,0)/100, pending: balance.pending.reduce((s,b) => s+b.amount,0)/100, currency: 'eur' });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { 
+    console.error('Stripe Error:', e.message);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 // ✅ NOUVEAU : Chat avec les agents
 app.post('/api/chat', async (req, res) => {
   const { message } = req.body;
+  console.log('Chat request received:', message);
   if (!message) return res.status(400).json({ error: 'Message requis' });
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20240620', max_tokens: 1000,
+      model: 'claude-3-haiku-20240307', max_tokens: 1000,
       messages: [{ role: 'user', content: `Tu es le coordinateur IA de SmileOS, une startup innovante.\nQuestion du fondateur : "${message}"\nRéponds clairement en français avec des emojis pour chaque point. 4-5 points maximum. Sois direct et utile.` }]
     });
+    console.log('Anthropic response received');
     res.json({ reply: response.content[0].text });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { 
+    console.error('Chat API Error:', e);
+    res.status(500).json({ 
+      error: e.message, 
+      type: e.type,
+      status: e.status,
+      stack: e.stack
+    }); 
+  }
 });
 
 app.post('/api/run/:agentId', async (req, res) => {
